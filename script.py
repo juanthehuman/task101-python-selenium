@@ -5,6 +5,7 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.common.by import By
 from chromedriver_binary import chromedriver_filename
+from selenium.common.exceptions import NoSuchElementException
 import time
 
 website = "https://www.google.com/"
@@ -43,45 +44,75 @@ try:
             for container_element in container_elements:
                 driver.execute_script("arguments[0].scrollIntoView(true);", container_element)
 
-                wait = WebDriverWait(driver, 10)
-
-                overlay_locator = '//div[@jsname="YrZdPb"]/div[2]/div[@jsname="tJHJj"]'
-                overlay = wait.until(EC.visibility_of_element_located((By.XPATH, overlay_locator)))
-                driver.execute_script("arguments[0].remove();", overlay)
-
-                element_locator = '//div[@jsname="YrZdPb"]/div[2]/div[@jsname="tJHJj"]'
-                element = wait.until(EC.element_to_be_clickable((By.XPATH, element_locator)))
-                driver.execute_script("arguments[0].scrollIntoView(true);", element)
                 driver.execute_script("arguments[0].style.position = 'absolute';", nav_element)
+
                 time.sleep(5)
-                element.click()
+                container_element.click()
 
             question_elements = driver.find_elements(by="xpath", value='//div[@jsname="lN6iy"]')
             answer_elements = driver.find_elements(by="xpath", value='//div[@class="wDYxhc"]')
+            blocks = driver.find_elements(by="xpath", value='//div[@jsname="NRdf4c"]/.')
+            containers = driver.find_elements(by="xpath", value='//div[@jsname="YrZdPb"]/div[2]/div[@jsname="tJHJj"]')
 
             # Final iteration
-            for index, (question_element, answer_element) in enumerate(zip(question_elements, answer_elements)):
+            for index, (question_element, answer_element, block, container) in enumerate(zip(question_elements, answer_elements, blocks, containers)):
+
+                if index == 0:
+                    continue
+
                 if index >= limit:
                     break
 
                 question = question_element.find_element(by="xpath", value='./span[1]/span[1]').text
-
-                block = driver.find_element(by="xpath", value='//div[@jsname="NRdf4c"]')
                 display_property = block.value_of_css_property("display")
 
-                wait = WebDriverWait(driver, 10)
+                xpath_options = [
+                    ('./div[@class="LGOjhe"]/span[1]/span[1]/.', "LGOjhe"),
+                    ('./div[@class="di3YZe"]/*', "di3YZe"),
+                    ('./div[@class="Crs1tb"]/*', "Crs1tb")
+                ]
 
-                if display_property == "block":
-                    el = answer_element.find_element(by="xpath", value='./div[1]/*')
-                    answer = el.text
+                found_element = None
 
-                if display_property == "none": 
-                    container_locator = '//div[@jsname="YrZdPb"]/div[2]/div[@jsname="tJHJj"]'
-                    container = wait.until(EC.element_to_be_clickable((By.XPATH, container_locator)))
+                if display_property == "none":
                     time.sleep(5)
                     container.click()
-                    el = answer_element.find_element(by="xpath", value='./div[1]/*')
-                    answer = el.text
+
+                for xpath, class_name in xpath_options:
+                    try:
+                        element = answer_element.find_element(by="xpath", value=xpath)
+                        time.sleep(5)
+                        answer = element.text
+                        found_element = class_name
+                        break
+                    except NoSuchElementException:
+                        continue
+                
+                if found_element is None:
+                    print("No matching element found.")
+
+                # try:
+                #     answer_element.find_element(by="xpath", value='./div[@class="LGOjhe"]')
+                #     print(answer_element.find_element(by="xpath", value='./div[@class="LGOjhe"]/span[1]/span[1]').text)
+                # except NoSuchElementException:
+                #     try:
+                #         print(answer_element.find_element(by="xpath", value='./div[@class="di3YZe"]/*').text)
+                #     except NoSuchElementException:
+                #         print(answer_element.find_element(by="xpath", value='./div[@class="Crs1tb"]/*').text)
+
+                # if display_property == "block":
+                    # el = answer_element.find_element(by="xpath", value='./div[1]/*')
+                    # answer = el.text
+                    # print("block")
+
+                # if display_property == "none": 
+                    # container_locator = '//div[@jsname="YrZdPb"]/div[2]/div[@jsname="tJHJj"]'
+                    # container = wait.until(EC.element_to_be_clickable((By.XPATH, container_locator)))
+                    # time.sleep(5)
+                    # container.click()
+                    # el = answer_element.find_element(by="xpath", value='./div[1]/*')
+                    # answer = el.text
+                    # print("none")
 
                 faqs[question] = answer
 
